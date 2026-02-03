@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Recovery</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&family=JetBrains+Mono:wght@400&family=Playfair+Display:ital@1&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --primary: #7d5fff;
+            /* Electric Purple */
+            --accent: #ff4757;
+            /* Burn Red */
+            --text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- SCREEN MANAGEMENT --- */
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: scale(0.95);
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+            z-index: 10;
+        }
+
+        /* --- SCREEN 1: BIOMETRIC UNLOCK --- */
+        .lock-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .fingerprint-area {
+            width: 100px;
+            height: 100px;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 40px 0;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .fingerprint-area::after {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 90%;
+            background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3a9 9 0 0 0-9 9v2'/><path d='M12 3a9 9 0 0 1 9 9v2'/><path d='M7.5 12a4.5 4.5 0 0 1 9 0v4'/><path d='M6.5 16v2a5.5 5.5 0 0 0 11 0v-2'/><path d='M9.5 12a2.5 2.5 0 0 1 5 0v6'/><path d='M12 14v6'/></svg>") no-repeat center / 70%;
+            opacity: 0.6;
+            transition: 0.3s;
+        }
+
+        .scanning .fingerprint-area::after {
+            opacity: 1;
+            filter: drop-shadow(0 0 10px var(--primary));
+            animation: pulse 1s infinite;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            animation: scan 1.5s infinite linear;
+            display: none;
+        }
+
+        .scanning .scan-line {
+            display: block;
+        }
+
+        /* --- SCREEN 2: THE BURNER (Money) --- */
+        .bill-container {
+            background: #fff;
+            color: #000;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 25px;
+            border-radius: 2px;
+            transform: rotate(-2deg);
+            position: relative;
+            margin-top: 50px;
+            transition: 1s;
+        }
+
+        .bill-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 5px;
+        }
+
+        .burn-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #ff4757, #ffa502, transparent);
+            transition: height 2s ease-in;
+            opacity: 0.8;
+            mix-blend-mode: multiply;
+        }
+
+        .burn-btn {
+            margin-top: 40px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        /* --- SCREEN 3: HOLOGRAPHIC GALLERY --- */
+        .gallery-wrapper {
+            flex: 1;
+            perspective: 1000px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: pan-y;
+        }
+
+        .photo-card-3d {
+            width: 280px;
+            height: 400px;
+            background: #222;
+            border-radius: 20px;
+            position: absolute;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .photo-card-3d img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-card-3d.active {
+            transform: translateZ(50px) rotate(0deg);
+            z-index: 5;
+            opacity: 1;
+        }
+
+        .photo-card-3d.next {
+            transform: translateZ(-50px) translateX(40px) rotate(5deg);
+            z-index: 4;
+            opacity: 0.6;
+            filter: blur(2px);
+        }
+
+        .photo-card-3d.prev {
+            transform: translateZ(-50px) translateX(-40px) rotate(-5deg);
+            z-index: 4;
+            opacity: 0;
+        }
+
+        .gallery-nav {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* --- SCREEN 4: THE CONTRACT --- */
+        .contract-card {
+            background: var(--surface);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .bengali-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            line-height: 1.5;
+            color: #e0e0e0;
+            margin: 20px 0;
+            font-style: italic;
+        }
+
+        .highlight {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        .signature-box {
+            border-bottom: 2px solid #555;
+            margin: 30px 20px 10px 20px;
+            color: #777;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            text-align: left;
+            padding-bottom: 5px;
+        }
+
+        .accept-btn {
+            background: var(--text);
+            color: #000;
+            width: 100%;
+            padding: 18px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-top: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- UTILS --- */
+        h2 {
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+        }
+
+        p.sub {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 0;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes ash {
+            0% {
+                filter: blur(0);
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            100% {
+                filter: blur(10px);
+                transform: translateY(-50px) scale(0.9);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="screen active" id="screen-1">
+        <div class="lock-content">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🔒</div>
+            <h2>SYSTEM LOCKED</h2>
+            <p class="sub">Boyfriend_Logic.exe is not responding.</p>
+
+            <div class="fingerprint-area" id="fingerprint">
+                <div class="scan-line"></div>
+            </div>
+
+            <p style="font-size: 0.8rem; opacity: 0.5; letter-spacing: 1px;">HOLD TO AUTHENTICATE</p>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-2">
+        <h2>Trash Cleaning...</h2>
+        <p class="sub">Deleting "Stupid Money Arguments"</p>
+
+        <div class="bill-container" id="bill">
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                <strong>HEART REPAIR LOG</strong><br>
+                <small>DATE: TODAY</small>
+            </div>
+            <div class="bill-row"><span>Misunderstandings</span><span>$5.00</span></div>
+            <div class="bill-row"><span>Raised Voice (Rare)</span><span>$1.00</span></div>
+            <div class="bill-row"><span>Mood Swings🐷 (Sometimes)</span><span>$3.00</span></div>
+            <div style="text-align: center; margin-top: 20px; font-weight: bold;">TOTAL: SORRY + HUGS</div>
+
+            <div class="burn-overlay"></div>
+        </div>
+
+        <button class="burn-btn" onclick="burnBill()">
+            <span>🔥 LET’S ERASE THIS</span>
+        </button>
+    </div>
+
+    <div class="screen" id="screen-3">
+        <h2>Restoring Data...</h2>
+        <p class="sub">Retrieving "Reasons I'm Lucky"</p>
+
+        <div class="gallery-wrapper" id="gallery-3d">
+            <div class="photo-card-3d active">
+                <img src="diya (1).png" alt="1">
+            </div>
+            <div class="photo-card-3d next">
+                <img src="diya (2).jpg" alt="2">
+            </div>
+            <div class="photo-card-3d prev">
+                <img src="diya (3).jpg" alt="3">
+            </div>
+        </div>
+
+        <p style="text-align: center; font-size: 0.8rem; opacity: 0.6; margin-top: 20px;">Tap to replay tor goo shakal</p>
+        <button class="accept-btn"
+            style="background: var(--surface); color: white; border: 1px solid #333; margin-top: 10px;"
+            onclick="nextScreen(4)">
+            Proceed to Contract &rarr;
+        </button>
+    </div>
+
+    <div class="screen" id="screen-4">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+            <div class="contract-card">
+                <div
+                    style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; margin: 0 auto 15px auto; border: 2px solid var(--primary);">
+                    <img src="diya (4).jpg" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+
+                <h3 style="margin: 0;">FINAL NOTICE</h3>
+                <p class="sub" style="margin-bottom: 20px;">Ref: Photographer Retention</p>
+
+                <hr style="border: 0; border-top: 1px solid #333;">
+
+                <div class="bengali-text">
+                    "Tui jodi amar opor rege thakish ar ekhane na ashish... <br>
+                    tahole <span class="highlight">tor bhalo shakal</span> ke tule debe be?"
+                </div>
+
+                <div class="signature-box">
+                    Status: <span style="color: var(--primary);">Waiting for Boss...and you should be a dominating boss</span>
+                </div>
+            </div>
+
+            <button class="accept-btn" onclick="finish()">
+                SIGN CONTRACT (HUG ME orelse nothing goo kha but do this)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- LOGIC ---
+
+        // 1. Biometric Logic
+        const fp = document.getElementById('fingerprint');
+        let holdTimer;
+
+        fp.addEventListener('touchstart', startScan);
+        fp.addEventListener('mousedown', startScan);
+        fp.addEventListener('touchend', stopScan);
+        fp.addEventListener('mouseup', stopScan);
+
+        function startScan(e) {
+            e.preventDefault();
+            fp.classList.add('scanning');
+            if (navigator.vibrate) navigator.vibrate(50);
+
+            holdTimer = setTimeout(() => {
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                nextScreen(2);
+            }, 1500); // 1.5 seconds hold
+        }
+
+        function stopScan() {
+            fp.classList.remove('scanning');
+            clearTimeout(holdTimer);
+        }
+
+        // 2. Navigation Logic
+        function nextScreen(n) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${n}`).classList.add('active');
+        }
+
+        // 3. Burn Logic
+        function burnBill() {
+            const bill = document.getElementById('bill');
+            const overlay = document.querySelector('.burn-overlay');
+
+            overlay.style.height = "100%"; // Fill with fire color
+
+            setTimeout(() => {
+                bill.style.animation = "ash 1s forwards"; // Disintegrate
+                if (navigator.vibrate) navigator.vibrate(200);
+            }, 1500);
+
+            setTimeout(() => {
+                nextScreen(3);
+            }, 2500);
+        }
+
+        // 4. 3D Gallery Logic
+        const gallery = document.getElementById('gallery-3d');
+        let startX = 0;
+        let startY = 0;
+        let isPointerDown = false;
+
+        function cyclePhotos() {
+            const current = gallery.querySelector('.photo-card-3d.active');
+            if (!current) return;
+            gallery.appendChild(current);
+
+            const newCards = gallery.querySelectorAll('.photo-card-3d');
+            if (newCards.length < 3) return;
+            newCards[0].className = "photo-card-3d active";
+            newCards[1].className = "photo-card-3d next";
+            newCards[2].className = "photo-card-3d prev";
+        }
+
+        gallery.addEventListener('pointerdown', (e) => {
+            isPointerDown = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        gallery.addEventListener('pointerup', (e) => {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+
+            if (absX > 40 && absX > absY) {
+                cyclePhotos();
+            } else if (absX < 10 && absY < 10) {
+                cyclePhotos();
+            }
+        });
+
+        gallery.addEventListener('pointerleave', () => {
+            isPointerDown = false;
+        });
+
+        // 5. Finish
+        function finish() {
+            const btn = document.querySelector('#screen-4 .accept-btn');
+            btn.innerHTML = "SYSTEM RESTORED ❤️";
+            btn.style.background = "#2ecc71";
+
+            // Confetti
+            for (let i = 0; i < 50; i++) {
+                createParticle();
+            }
+        }
+
+        function createParticle() {
+            const p = document.createElement('div');
+            p.style.position = 'fixed';
+            p.style.top = '50%';
+            p.style.left = '50%';
+            p.style.width = Math.random() * 10 + 'px';
+            p.style.height = Math.random() * 10 + 'px';
+            p.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            p.style.zIndex = '999';
+            p.style.pointerEvents = 'none';
+            document.body.appendChild(p);
+
+            const x = (Math.random() - 0.5) * window.innerWidth;
+            const y = (Math.random() - 0.5) * window.innerHeight;
+
+            p.animate([
+                { transform: 'translate(-50%, -50%)' },
+                { transform: `translate(${x}px, ${y}px)`, opacity: 0 }
+            ], { duration: 1000 + Math.random() * 1000 }).onfinish = () => p.remove();
+        }
+
+    </script>
+</body>
+
+</html>
